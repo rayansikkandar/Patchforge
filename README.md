@@ -64,7 +64,7 @@ export GITHUB_TOKEN="your_actual_token"
 export NVD_API_KEY="your_actual_key"  # Optional
 ```
 
-**⚠️ Security Note:** `.env` is git-ignored and should never be committed. See `SECURITY.md` for details.
+**⚠️ Security Note:** `.env` is git-ignored and should never be committed. Always use `.env.example` as a template and keep your actual API keys secure.
 
 ### 3. Run PatchForge
 
