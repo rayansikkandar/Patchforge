@@ -122,22 +122,25 @@ python main.py <repo_path> <github_repo_name>
 python main.py ../pathforge-demo rayansikkandar/pathforge-demo
 ```
 
-**Demo Mode (Showcase ReAct Loop):**
-```bash
-python main.py --demo-react
-# or
-python main.py <repo_path> <repo_name> --demo-react
-```
-Creates intentional conflicts to showcase the ReAct retry loop. Perfect for demonstrations!
-
 **With CVE Explanations:**
 ```bash
 python main.py --explain
-# Adds detailed CVE explanations to PR descriptions
+# Adds detailed CVE explanations to PR descriptions using Nemotron + RAG
 ```
 
-See `INTERACTIVE_CLI.md` for the full interactive experience guide.
-See `DEMO_REACT_LOOP.md` for ReAct loop demo instructions.
+**Demo Mode (Showcase ReAct Loop):**
+```bash
+python main.py --demo-react
+# Creates intentional conflicts to showcase the ReAct retry loop
+```
+
+**Combined Flags:**
+```bash
+python main.py --explain --demo-react
+# Interactive mode with explanations and ReAct loop demo
+```
+
+**See `QUICK_START.md` for a complete step-by-step guide.**
 
 ## Architecture
 
