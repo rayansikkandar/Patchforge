@@ -400,7 +400,7 @@ def rag_nvd(cve_id: str, top_k: int = 3) -> str:
         try:
             results = collection.get(ids=[cve_id])
             
-            if results["ids"]:
+            if results["ids"] and len(results["ids"]) > 0:
                 # Found exact match
                 doc = results["documents"][0]
                 metadata = results["metadatas"][0]
@@ -416,8 +416,9 @@ Description: {metadata.get('description', doc)}
 Full Details: {doc}
 """
                 return context.strip()
-        except:
+        except Exception as e:
             # CVE not found by exact match, try similarity search
+            logger.debug(f"Exact match not found, trying similarity search: {e}")
             pass
         
         # If no exact match, try similarity search
@@ -437,7 +438,9 @@ Full Details: {doc}
             metadata = results["metadatas"][0][0]
             distance = results["distances"][0][0] if results.get("distances") else None
             
-            logger.info(f"✅ Retrieved similar CVE (distance: {distance:.3f if distance else 'N/A'})")
+            # Format distance safely
+            distance_str = f"{distance:.3f}" if distance is not None else "N/A"
+            logger.info(f"✅ Retrieved similar CVE (distance: {distance_str})")
             
             context = f"""
 CVE ID: {metadata.get('cve_id', cve_id)}
