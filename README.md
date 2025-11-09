@@ -10,17 +10,26 @@ PatchForge is a multi-agent system that automatically:
 5. 🧪 **Validates** patches before deployment
 6. 📝 **Creates** GitHub PRs automatically
 
-## 🆕 New Feature: ReAct Loop
+## 🆕 Key Features
 
-PatchForge now includes a **ReAct-style retry loop** that automatically refines patches when validation fails:
+### ReAct-Style Retry Loop
+
+PatchForge includes a **ReAct-style retry loop** that automatically refines patches when validation fails:
 
 - **First attempt**: Fast regex-based patch generation
 - **Validation fails**: Error feedback captured
 - **Retry with AI**: Nemotron analyzes errors and refines the patch
-- **Up to 3 attempts**: Intelligent conflict resolution
+- **Up to 3 attempts**: Intelligent conflict resolution with multi-package coordination
 - **Success**: Only creates PR when validation passes
 
-See `REACT_LOOP.md` for detailed documentation.
+### Multi-Package Updates
+
+When dependency conflicts are detected, PatchForge automatically coordinates updates across multiple packages:
+
+- Analyzes dependency conflicts
+- Uses precise compatibility rules (e.g., Flask 2.3.x → Werkzeug 2.3.3)
+- Updates all necessary packages together
+- Ensures compatibility across the dependency tree
 
 ## Quick Start
 
