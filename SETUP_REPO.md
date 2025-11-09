@@ -1,149 +1,85 @@
-# Setting Up a Test Repository for PatchForge Demo
+# Setting Up PatchForge Repository on GitHub
 
-## Quick Setup
-
-Run the setup script:
-
-```bash
-./setup_test_repo.sh
-```
-
-The script will guide you through:
-1. Creating a GitHub repository
-2. Initializing the local repo with the demo app
-3. Pushing to GitHub
-
-## Manual Setup
-
-If you prefer to set up manually:
-
-### Step 1: Create Repository on GitHub
+## Step 1: Create GitHub Repository
 
 1. Go to https://github.com/new
-2. Repository name: `patchforge-test` (or any name you prefer)
-3. Description: "PatchForge test repository"
-4. Choose: Public or Private
-5. **DO NOT** initialize with README, .gitignore, or license
+2. Repository name: `PatchForge` (or `patchforge`)
+3. Description: "Autonomous multi-agent system for scanning codebases for CVEs, researching fixes, generating patches, validating them, and creating GitHub PRs automatically"
+4. Visibility: **Public** (so teammates can see it) or **Private** (if you prefer)
+5. **DO NOT** initialize with README, .gitignore, or license (we already have these)
 6. Click "Create repository"
 
-### Step 2: Initialize Local Repository
+## Step 2: Push Code to GitHub
+
+After creating the repository, GitHub will show you commands. Use these:
 
 ```bash
-# Create directory (outside PatchForge)
-cd ..
-mkdir patchforge-test
-cd patchforge-test
+cd /Users/rayansikkandar/PatchForge
 
-# Initialize git
-git init
+# Add the remote (replace YOUR_USERNAME with your GitHub username)
+git remote add origin https://github.com/YOUR_USERNAME/PatchForge.git
+
+# Rename branch to main if needed
 git branch -M main
 
-# Copy demo app
-cp ../PatchForge/demo/vulnerable_app/requirements.txt .
-
-# Create README
-cat > README.md << 'EOF'
-# PatchForge Test Repository
-
-Vulnerable app for testing PatchForge's CVE patching capabilities.
-EOF
-
-# Create a simple app file
-cat > app.py << 'EOF'
-from flask import Flask
-app = Flask(__name__)
-
-@app.route('/')
-def hello():
-    return "Hello, PatchForge!"
-EOF
-
-# Commit
-git add .
-git commit -m "Initial commit: Vulnerable app for PatchForge demo"
-
-# Add remote (replace YOUR_USERNAME with your GitHub username)
-git remote add origin https://github.com/YOUR_USERNAME/patchforge-test.git
-
-# Push
+# Push the code
 git push -u origin main
 ```
 
-### Step 3: Run PatchForge Demo
+## Step 3: Verify
 
-```bash
-cd PatchForge
-source venv/bin/activate
-python main.py ../patchforge-test YOUR_USERNAME/patchforge-test
+1. Go to your GitHub repository page
+2. Verify all files are there
+3. Check that `.env` is NOT in the repository (it should be git-ignored)
+4. Verify `README.md` displays correctly
+
+## Step 4: Share with Teammates
+
+1. Go to repository settings
+2. Click "Collaborators"
+3. Add your teammates by their GitHub usernames
+4. They will receive an invitation email
+
+## Important Notes
+
+### Security
+- ✅ `.env` is git-ignored (secrets are safe)
+- ✅ `.env.example` is included (template for teammates)
+- ✅ `venv/` is git-ignored (virtual environment)
+- ✅ API keys should be in `.env` (not committed)
+
+### Setup for Teammates
+Teammates should:
+1. Clone the repository
+2. Copy `.env.example` to `.env`
+3. Add their own API keys to `.env`
+4. Create and activate virtual environment
+5. Install dependencies: `pip install -r requirements.txt`
+
+## Repository Structure
+
 ```
-
-## Repository Contents
-
-The test repository will contain:
-
-- `requirements.txt` - Vulnerable packages:
-  - Flask==2.0.1 (has CVEs)
-  - requests==2.25.0 (has CVEs)
-  - Jinja2==2.11.0 (has CVEs)
-
-- `README.md` - Repository description
-- `app.py` - Simple Flask app (optional)
-
-## Authentication
-
-If you encounter authentication issues:
-
-### Option 1: Use GitHub Token in URL
-
-```bash
-git remote set-url origin https://YOUR_TOKEN@github.com/username/repo.git
+PatchForge/
+├── agents/           # Agent implementations
+├── tools/            # API clients (OSV, GitHub, NVD)
+├── utils/            # Utilities (logging, parsers)
+├── tests/            # Test suite
+├── demo_mode.py      # Demo scenario creation
+├── main.py           # Main orchestration script
+├── config.py         # Configuration
+├── requirements.txt  # Dependencies
+├── README.md         # Project documentation
+├── .env.example      # Environment variable template
+└── .gitignore        # Git ignore rules
 ```
-
-### Option 2: Use SSH
-
-```bash
-git remote set-url origin git@github.com:username/repo.git
-```
-
-### Option 3: Configure Git Credential Helper
-
-```bash
-git config --global credential.helper osxkeychain  # macOS
-# or
-git config --global credential.helper store        # Linux
-```
-
-## Troubleshooting
-
-### "Repository not found"
-- Make sure the repository exists on GitHub
-- Check that you have the correct username and repo name
-- Verify your GitHub token has access
-
-### "Authentication failed"
-- Check your GitHub token in `.env`
-- Make sure the token has `repo` scope
-- Try using SSH instead of HTTPS
-
-### "Push rejected"
-- The repository might have different commits
-- Try: `git push -u origin main --force` (use with caution)
 
 ## Next Steps
 
-After the repository is set up:
+1. Create the GitHub repository
+2. Push the code
+3. Add teammates as collaborators
+4. Share the repository URL with your team
 
-1. Run the PatchForge demo:
-   ```bash
-   ./run_demo.sh YOUR_USERNAME/patchforge-test
-   ```
+---
 
-2. PatchForge will:
-   - Scan for CVEs
-   - Research vulnerabilities
-   - Generate patches
-   - Validate patches
-   - Create a GitHub PR
-
-3. Check the PR on GitHub and merge it if everything looks good!
-
+**Ready to push?** Follow the steps above! 🚀
