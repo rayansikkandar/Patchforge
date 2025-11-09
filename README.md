@@ -12,7 +12,16 @@ PatchForge is a multi-agent system that automatically:
 
 ## 🆕 Key Features
 
-### ReAct-Style Retry Loop
+### 🤖 RAG-Powered CVE Analysis
+
+PatchForge uses **Retrieval-Augmented Generation (RAG)** over the National Vulnerability Database (NVD) to provide grounded, authoritative CVE analysis:
+
+- **Grounded Intelligence**: Queries official NVD data via vector database
+- **Professional PRs**: Generates CISO-ready PR descriptions using NVD context
+- **Authoritative Explanations**: CVE fixes are based on official NVD advisories
+- **Vector Search**: ChromaDB enables fast, accurate CVE retrieval
+
+### 🔄 ReAct-Style Retry Loop
 
 PatchForge includes a **ReAct-style retry loop** that automatically refines patches when validation fails:
 
@@ -22,7 +31,7 @@ PatchForge includes a **ReAct-style retry loop** that automatically refines patc
 - **Up to 3 attempts**: Intelligent conflict resolution with multi-package coordination
 - **Success**: Only creates PR when validation passes
 
-### Multi-Package Updates
+### 📦 Multi-Package Updates
 
 When dependency conflicts are detected, PatchForge automatically coordinates updates across multiple packages:
 
@@ -66,7 +75,22 @@ export NVD_API_KEY="your_actual_key"  # Optional
 
 **⚠️ Security Note:** `.env` is git-ignored and should never be committed. Always use `.env.example` as a template and keep your actual API keys secure.
 
-### 3. Run PatchForge
+### 3. Setup RAG Database (Optional but Recommended)
+
+For RAG-powered CVE analysis with professional PR descriptions:
+
+```bash
+python setup_rag.py
+```
+
+This will:
+- Download CVE data from NVD (2023-2024)
+- Build a vector database using ChromaDB
+- Enable grounded, authoritative CVE explanations
+
+**Note**: This step is optional. PatchForge will work without it, but PR descriptions will be simpler.
+
+### 4. Run PatchForge
 
 **Interactive Mode (Recommended):**
 ```bash

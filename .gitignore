@@ -56,3 +56,6 @@ logs/
 # PatchForge temporary repositories
 temp_repos/
 
+# ChromaDB vector database
+chroma_nvd/
+

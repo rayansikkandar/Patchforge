@@ -1,5 +1,6 @@
 from agents.base_agent import NemotronAgent
 from tools.osv_client import OSVClient
+from tools.rag_nvd import rag_nvd
 import requests
 from packaging import version as pkg_version
 from utils.logger import setup_logger
@@ -33,7 +34,19 @@ class ResearcherAgent(NemotronAgent):
         ecosystem = cve_data['ecosystem']
         cve_id = cve_data.get('cve_id', '')
         
-        # Get latest secure version from registry
+        # 1. Get rich context from NVD via RAG (NEW: Grounded intelligence)
+        nvd_context = ""
+        try:
+            nvd_context = rag_nvd(cve_id)
+            self.logger.info(f"📚 Retrieved NVD context for {cve_id}")
+            if "Error" in nvd_context or "No detailed information" in nvd_context:
+                self.logger.warning(f"⚠️  Limited NVD context for {cve_id}")
+                nvd_context = ""  # Don't use invalid context
+        except Exception as e:
+            self.logger.warning(f"⚠️  Could not retrieve NVD context: {e}")
+            nvd_context = ""
+        
+        # 2. Get latest secure version from registry
         if ecosystem == 'PyPI':
             # Try to get CVE fix information from OSV first
             fixed_version = self._get_fixed_version_from_osv(package, cve_id, current_version, ecosystem)
@@ -52,7 +65,8 @@ class ResearcherAgent(NemotronAgent):
         
         self.logger.info(f"✅ Found secure version: {secure_version}")
         
-        return {
+        # Store NVD context for later use in PR descriptions
+        research_result = {
             'cve_id': cve_data['cve_id'],
             'package': package,
             'current_version': current_version,
@@ -61,14 +75,47 @@ class ResearcherAgent(NemotronAgent):
             'cvss_score': cve_data.get('cvss_score', 0),
             'file_path': cve_data.get('file_path', 'requirements.txt'),  # Relative path
             'full_file_path': cve_data.get('full_file_path', cve_data.get('file_path', 'requirements.txt')),  # Full path
-            'summary': cve_data.get('summary', '')
+            'summary': cve_data.get('summary', ''),
+            'nvd_context': nvd_context  # Store NVD context for PR generation
         }
+        
+        return research_result
     
     def explain_cve_fix(self, cve_data: dict, research_data: dict) -> str:
-        """Generate a detailed explanation of the CVE fix using Nemotron"""
+        """Generate a detailed explanation of the CVE fix using Nemotron with NVD context"""
         self.logger.info(f"📚 Generating CVE fix explanation for {cve_data['cve_id']}")
         
-        prompt = f"""You are a cybersecurity expert explaining a CVE fix to developers.
+        # Get NVD context if available
+        nvd_context = research_data.get('nvd_context', '')
+        
+        # Build prompt with NVD context
+        if nvd_context and "Error" not in nvd_context and "No detailed information" not in nvd_context:
+            prompt = f"""You are a cybersecurity expert explaining a CVE fix to developers.
+
+CVE ID: {cve_data['cve_id']}
+Package: {research_data['package']}
+Current Version: {research_data['current_version']}
+Secure Version: {research_data['secure_version']}
+CVSS Score: {research_data.get('cvss_score', 0)}/10
+
+Full NVD (National Vulnerability Database) Context:
+---
+{nvd_context}
+---
+
+Based on the official NVD data above, provide a clear, concise explanation that covers:
+
+1. **What is the vulnerability?** - Explain what the CVE allows attackers to do (use NVD details)
+2. **Why is this version secure?** - Explain what was fixed in the secure version
+3. **What should developers know?** - Any important notes about the upgrade, breaking changes, or compatibility
+
+Keep it technical but accessible. Aim for 3-4 paragraphs. Be specific about the security impact.
+Reference the NVD data to make your explanation authoritative and grounded in official sources.
+
+Explanation:"""
+        else:
+            # Fallback to basic explanation without NVD context
+            prompt = f"""You are a cybersecurity expert explaining a CVE fix to developers.
 
 CVE ID: {cve_data['cve_id']}
 Package: {research_data['package']}
