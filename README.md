@@ -163,7 +163,9 @@ python main.py --explain --demo-react
 
 ### Tools
 
+- **RAG System**: ChromaDB vector database for NVD CVE retrieval (38,000+ CVEs indexed as vector embeddings)
 - **NVDClient**: Interfaces with NIST NVD API
+- **OSVClient**: Queries Open Source Vulnerabilities database for precise package+version matching
 - **GitHubClient**: Manages GitHub operations (branches, commits, PRs)
 - **Sandbox**: Isolated testing environment (future)
 
