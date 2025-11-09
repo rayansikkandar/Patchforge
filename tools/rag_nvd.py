@@ -20,13 +20,162 @@ except ImportError:
     logger.warning("⚠️  chromadb not installed. RAG features will be limited. Install with: pip install chromadb")
 
 # ChromaDB setup
-CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", "chroma_nvd")
+CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", ".chroma")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 COLLECTION_NAME = "nvd_cves"
+
+# Local JSON files to load (if available)
+LOCAL_FILES = ["cve-2024.json", "cve-2023.json"]
+
+
+def load_local_cves(data_dir: str = None) -> int:
+    """
+    Load CVEs from local JSON files into ChromaDB
+    
+    Args:
+        data_dir: Directory containing CVE JSON files (default: data/)
+    
+    Returns:
+        Number of CVEs indexed
+    """
+    if not CHROMADB_AVAILABLE:
+        logger.error("❌ chromadb is not installed. Install with: pip install chromadb")
+        return 0
+    
+    if data_dir is None:
+        data_dir = DATA_DIR
+    
+    if not os.path.exists(data_dir):
+        logger.warning(f"⚠️  Data directory not found: {data_dir}")
+        return 0
+    
+    logger.info(f"📚 Loading CVEs from local JSON files in {data_dir}...")
+    
+    # Initialize ChromaDB
+    os.makedirs(CHROMA_DIR, exist_ok=True)
+    client = chromadb.PersistentClient(path=CHROMA_DIR, settings=Settings(anonymized_telemetry=False))
+    
+    # Get or create collection
+    try:
+        collection = client.get_collection(COLLECTION_NAME)
+        count = collection.count()
+        if count > 0:
+            logger.info(f"✅ Found existing collection with {count} CVEs")
+            return count
+    except:
+        collection = client.create_collection(
+            name=COLLECTION_NAME,
+            metadata={"description": "NVD CVE database for RAG"}
+        )
+        logger.info("✅ Created new collection")
+    
+    total = 0
+    
+    # Load from local JSON files
+    for filename in LOCAL_FILES:
+        path = os.path.join(data_dir, filename)
+        if not os.path.exists(path):
+            logger.warning(f"⚠️  Missing file: {path}")
+            continue
+        
+        try:
+            with open(path, "r", encoding='utf-8') as f:
+                data = json.load(f)
+                vulnerabilities = data.get("vulnerabilities", [])
+                
+                logger.info(f"📥 Loading {len(vulnerabilities)} CVEs from {filename}...")
+                
+                # Process CVEs in batches
+                batch_size = 100
+                batch_ids = []
+                batch_docs = []
+                batch_metas = []
+                
+                for item in vulnerabilities:
+                    cve = item.get("cve", {})
+                    cve_id = cve.get("id", "")
+                    if not cve_id:
+                        continue
+                    
+                    # Get description
+                    descriptions = cve.get("descriptions", [])
+                    description = ""
+                    for desc in descriptions:
+                        if desc.get("lang") == "en":
+                            description = desc.get("value", "")
+                            break
+                    if not description:
+                        continue
+                    
+                    # Get metrics
+                    metrics = cve.get("metrics", {})
+                    cvss_v3 = metrics.get("cvssMetricV31", [{}])[0] if metrics.get("cvssMetricV31") else {}
+                    cvss_v2 = metrics.get("cvssMetricV2", [{}])[0] if metrics.get("cvssMetricV2") else {}
+                    base_score = cvss_v3.get("cvssData", {}).get("baseScore") or cvss_v2.get("cvssData", {}).get("baseScore") or 0.0
+                    
+                    # Get published date
+                    published = cve.get("published", "")
+                    
+                    # Create document text
+                    doc_text = f"""CVE ID: {cve_id}
+Published: {published}
+CVSS Score: {base_score}/10
+Description: {description}
+"""
+                    
+                    batch_ids.append(cve_id)
+                    batch_docs.append(doc_text.strip())
+                    batch_metas.append({
+                        "cve_id": cve_id,
+                        "published": published,
+                        "cvss_score": float(base_score),
+                        "description": description[:500]
+                    })
+                    
+                    # Add batch when full
+                    if len(batch_ids) >= batch_size:
+                        try:
+                            collection.add(
+                                ids=batch_ids,
+                                documents=batch_docs,
+                                metadatas=batch_metas
+                            )
+                            total += len(batch_ids)
+                            logger.info(f"   ✅ Indexed {total} CVEs...")
+                        except Exception as e:
+                            logger.warning(f"   ⚠️  Error adding batch: {e}")
+                        
+                        batch_ids = []
+                        batch_docs = []
+                        batch_metas = []
+                
+                # Add remaining CVEs
+                if batch_ids:
+                    try:
+                        collection.add(
+                            ids=batch_ids,
+                            documents=batch_docs,
+                            metadatas=batch_metas
+                        )
+                        total += len(batch_ids)
+                    except Exception as e:
+                        logger.warning(f"   ⚠️  Error adding final batch: {e}")
+                
+                logger.info(f"✅ Loaded {len(vulnerabilities)} CVEs from {filename}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error loading {filename}: {e}")
+            continue
+    
+    logger.info(f"✅ Indexed {total} CVEs total into ChromaDB")
+    logger.info(f"📁 Database location: {CHROMA_DIR}")
+    
+    return total
 
 
 def download_nvd_data(year: int = 2024, max_cves: Optional[int] = None) -> list:
     """
-    Download CVE data from NVD API
+    Download CVE data from NVD API (fallback if local files not available)
     
     Args:
         year: Year to download (default: 2024)
@@ -35,10 +184,11 @@ def download_nvd_data(year: int = 2024, max_cves: Optional[int] = None) -> list:
     Returns:
         List of CVE dictionaries
     """
+    import time
     logger.info(f"📥 Downloading NVD data for year {year}...")
     
     # NVD API endpoint (free tier, no API key required)
-    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0"
+    url = "https://services.nvd.nist.gov/rest/json/cves/2.0"
     
     params = {
         "pubStartDate": f"{year}-01-01T00:00:00.000",
@@ -78,7 +228,6 @@ def download_nvd_data(year: int = 2024, max_cves: Optional[int] = None) -> list:
                 break
             
             # Rate limiting: NVD allows 5 requests per 30 seconds
-            import time
             time.sleep(6)
         
         logger.info(f"✅ Downloaded {len(all_cves)} CVEs for year {year}")
@@ -89,19 +238,30 @@ def download_nvd_data(year: int = 2024, max_cves: Optional[int] = None) -> list:
         return all_cves
 
 
-def build_vector_db(years: list = [2023, 2024], max_cves_per_year: Optional[int] = 1000):
+def build_vector_db(years: list = [2023, 2024], max_cves_per_year: Optional[int] = 1000, use_local: bool = True):
     """
     Build ChromaDB vector database from NVD data
     
     Args:
         years: List of years to download (default: [2023, 2024])
         max_cves_per_year: Maximum CVEs per year (None for all)
+        use_local: Try to load from local JSON files first (default: True)
     """
     if not CHROMADB_AVAILABLE:
         logger.error("❌ chromadb is not installed. Install with: pip install chromadb")
         return
     
     logger.info("🔨 Building NVD vector database...")
+    
+    # Try loading from local files first
+    if use_local:
+        count = load_local_cves()
+        if count > 0:
+            logger.info(f"✅ Database built from local files with {count} CVEs")
+            return
+    
+    # Fallback to API download
+    logger.info("📥 No local files found, downloading from NVD API...")
     
     # Initialize ChromaDB
     os.makedirs(CHROMA_DIR, exist_ok=True)
@@ -228,28 +388,37 @@ def rag_nvd(cve_id: str, top_k: int = 3) -> str:
             collection = client.get_collection(COLLECTION_NAME)
         except:
             logger.warning("⚠️  Collection not found. Building database...")
-            build_vector_db()
-            collection = client.get_collection(COLLECTION_NAME)
+            # Try to load from local files
+            load_local_cves()
+            try:
+                collection = client.get_collection(COLLECTION_NAME)
+            except:
+                logger.error("❌ Could not create collection. Database may be corrupted.")
+                return f"CVE ID: {cve_id}\nError: Could not access vector database."
         
         # Query for exact CVE match first
-        results = collection.get(ids=[cve_id])
-        
-        if results["ids"]:
-            # Found exact match
-            doc = results["documents"][0]
-            metadata = results["metadatas"][0]
+        try:
+            results = collection.get(ids=[cve_id])
             
-            logger.info(f"✅ Retrieved exact match for {cve_id}")
-            
-            # Format the context
-            context = f"""
+            if results["ids"]:
+                # Found exact match
+                doc = results["documents"][0]
+                metadata = results["metadatas"][0]
+                
+                logger.info(f"✅ Retrieved exact match for {cve_id}")
+                
+                # Format the context
+                context = f"""
 CVE ID: {cve_id}
 Published: {metadata.get('published', 'Unknown')}
 CVSS Score: {metadata.get('cvss_score', 0.0)}/10
 Description: {metadata.get('description', doc)}
 Full Details: {doc}
 """
-            return context.strip()
+                return context.strip()
+        except:
+            # CVE not found by exact match, try similarity search
+            pass
         
         # If no exact match, try similarity search
         logger.info(f"🔍 No exact match for {cve_id}, searching similar CVEs...")
@@ -268,7 +437,7 @@ Full Details: {doc}
             metadata = results["metadatas"][0][0]
             distance = results["distances"][0][0] if results.get("distances") else None
             
-            logger.info(f"✅ Retrieved similar CVE (distance: {distance:.3f})")
+            logger.info(f"✅ Retrieved similar CVE (distance: {distance:.3f if distance else 'N/A'})")
             
             context = f"""
 CVE ID: {metadata.get('cve_id', cve_id)}
@@ -290,14 +459,22 @@ Note: This is a similar CVE retrieved via similarity search.
 
 
 if __name__ == "__main__":
-    # Build the vector database
+    # Build the vector database (prefer local files)
     print("🔨 Building NVD vector database...")
-    print("This may take a few minutes...")
-    build_vector_db(years=[2023, 2024], max_cves_per_year=1000)
-    print("✅ Database built successfully!")
+    print("This will try to load from local JSON files first, then fall back to API...")
+    print()
+    
+    # Try loading from local files first
+    count = load_local_cves()
+    
+    if count == 0:
+        # Fallback to API download
+        print("📥 No local files found, downloading from NVD API...")
+        build_vector_db(years=[2023, 2024], max_cves_per_year=1000, use_local=False)
+    else:
+        print(f"✅ Database ready with {count} CVEs from local files")
     
     # Test query
     print("\n🧪 Testing RAG query...")
     result = rag_nvd("CVE-2023-30861")
     print(result)
-

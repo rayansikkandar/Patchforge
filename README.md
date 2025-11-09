@@ -79,16 +79,26 @@ export NVD_API_KEY="your_actual_key"  # Optional
 
 For RAG-powered CVE analysis with professional PR descriptions:
 
+**Option A: Use Local JSON Files (Fastest)**
 ```bash
+# Place CVE JSON files in data/ directory:
+# - data/cve-2024.json
+# - data/cve-2023.json
 python setup_rag.py
 ```
 
+**Option B: Download from NVD API**
+```bash
+python setup_rag.py
+# Will automatically download if local files not found
+```
+
 This will:
-- Download CVE data from NVD (2023-2024)
+- Load CVEs from local JSON files (if available) or download from NVD API
 - Build a vector database using ChromaDB
 - Enable grounded, authoritative CVE explanations
 
-**Note**: This step is optional. PatchForge will work without it, but PR descriptions will be simpler.
+**Note**: This step is optional. PatchForge will work without it, but PR descriptions will be simpler. Local JSON files are fastest for demos.
 
 ### 4. Run PatchForge
 

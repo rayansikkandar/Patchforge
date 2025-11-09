@@ -58,4 +58,10 @@ temp_repos/
 
 # ChromaDB vector database
 chroma_nvd/
+.chroma/
+
+# Local CVE data files (can be large)
+data/
+*.json
+!demo/**/*.json
 
