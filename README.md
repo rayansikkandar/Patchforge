@@ -12,14 +12,16 @@ PatchForge is a multi-agent system that automatically:
 
 ## 🆕 Key Features
 
-### 🤖 RAG-Powered CVE Analysis
+### 🤖 RAG-Powered CVE Analysis with Vector Database
 
-PatchForge uses **Retrieval-Augmented Generation (RAG)** over the National Vulnerability Database (NVD) to provide grounded, authoritative CVE analysis:
+PatchForge uses **Retrieval-Augmented Generation (RAG)** over the National Vulnerability Database (NVD) with a **ChromaDB vector database** to provide grounded, authoritative CVE analysis:
 
-- **Grounded Intelligence**: Queries official NVD data via vector database
-- **Professional PRs**: Generates CISO-ready PR descriptions using NVD context
-- **Authoritative Explanations**: CVE fixes are based on official NVD advisories
-- **Vector Search**: ChromaDB enables fast, accurate CVE retrieval
+- **Vector Database**: ChromaDB stores 38,000+ CVEs as vector embeddings for fast semantic search
+- **Grounded Intelligence**: Queries official NVD data via vector database (not just API calls)
+- **Professional PRs**: Generates CISO-ready PR descriptions using NVD context from vector search
+- **Authoritative Explanations**: CVE fixes are based on official NVD advisories retrieved via vector similarity
+- **Vector Search**: Semantic search over CVE descriptions enables accurate, context-aware retrieval
+- **Demo Ready**: Vector database uses local JSON files for fast, reliable demos without API rate limits
 
 ### 🔄 ReAct-Style Retry Loop
 
@@ -75,11 +77,11 @@ export NVD_API_KEY="your_actual_key"  # Optional
 
 **⚠️ Security Note:** `.env` is git-ignored and should never be committed. Always use `.env.example` as a template and keep your actual API keys secure.
 
-### 3. Setup RAG Database (Optional but Recommended)
+### 3. Setup RAG Vector Database (Optional but Recommended)
 
-For RAG-powered CVE analysis with professional PR descriptions:
+For RAG-powered CVE analysis with professional PR descriptions, PatchForge uses a **ChromaDB vector database**:
 
-**Option A: Use Local JSON Files (Fastest)**
+**Option A: Use Local JSON Files (Fastest - Recommended for Demos)**
 ```bash
 # Place CVE JSON files in data/ directory:
 # - data/cve-2024.json
@@ -95,10 +97,17 @@ python setup_rag.py
 
 This will:
 - Load CVEs from local JSON files (if available) or download from NVD API
-- Build a vector database using ChromaDB
-- Enable grounded, authoritative CVE explanations
+- **Build a ChromaDB vector database** (`.chroma/` directory) with vector embeddings
+- Index 38,000+ CVEs for fast semantic search
+- Enable grounded, authoritative CVE explanations via vector similarity search
 
-**Note**: This step is optional. PatchForge will work without it, but PR descriptions will be simpler. Local JSON files are fastest for demos.
+**Vector Database Benefits:**
+- **Fast Semantic Search**: Vector embeddings enable fast, accurate CVE retrieval
+- **No API Rate Limits**: Local vector database eliminates API dependency
+- **Demo Ready**: Works offline, perfect for demonstrations
+- **Scalable**: Can index millions of CVEs with fast query performance
+
+**Note**: This step is optional. PatchForge will work without it, but PR descriptions will be simpler. **The vector database is recommended for demos** to showcase RAG functionality.
 
 ### 4. Run PatchForge
 
@@ -207,6 +216,8 @@ The demo uses `demo/vulnerable_app` which contains vulnerable packages (Flask 2.
 - NVIDIA API key (for Nemotron)
 - GitHub token (for PR creation)
 - NVD API key (optional, but recommended for rate limits)
+- ChromaDB (for vector database - installed via `requirements.txt`)
+- CVE JSON files (optional, for local vector database - recommended for demos)
 
 ## License
 
